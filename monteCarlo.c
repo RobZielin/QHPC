@@ -50,7 +50,7 @@ int main(int argc, char** argv) {
     }
 
     // collect results
-    MPI_Reduce(&local_hits, &global_hits, 1, MPI_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&local_sum, &global_sum, 1, MPI_LONG_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
     if (world_rank == 0) {
         long double sqrt2_est = global_sum / (long double)total_samples;
