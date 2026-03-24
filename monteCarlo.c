@@ -43,21 +43,20 @@ int main(int argc, char** argv) {
 
         #pragma omp for
         for (long long i = 0; i < local_samples; i++) {
-            long double x = rand_r(&thread_seed) / (long double)RAND_MAX; 
-            long double y = (rand_r(&thread_seed) / (long double)RAND_MAX) * sqrt2;
+            // 
+            long double x = (rand_r(&thread_seed) / (long double)RAND_MAX) * 2.0L;
 
-            // check boundary condition
-            if (y <= sqrt2 * (1.0 - x))
-                local_hits++;
+            // 
+            local_sum += 1.0L / sqrtl(x);
         }
+    }
     }
 
     // collect results
     MPI_Reduce(&local_hits, &global_hits, 1, MPI_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
 
     if (world_rank == 0) {
-        long double probability_hit = (long double)global_hits / (long double)total_samples;
-        long double sqrt2_est = 2.0 * probability_hit;
+        long double sqrt2_est = global_sum / (long double)total_samples;
 
         printf("Estimated sqrt(2) = %.10Lf\n", sqrt2_est);
         printf("Actual sqrt(2)    = %.10Lf\n", (long double)sqrt(2.0));
