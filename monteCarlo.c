@@ -12,7 +12,7 @@
 
 int main(int argc, char** argv) {
     long long total_samples, local_samples;
-    long long local_hits = 0, global_hits = 0;
+    long double local_sum = 0.0L, global_sum = 0.0L;
 
     MPI_Init(&argc, &argv);
 
@@ -30,8 +30,6 @@ int main(int argc, char** argv) {
 
     total_samples = atoll(argv[1]);
     local_samples = total_samples / world_size;
-
-    long double sqrt2 = sqrtl(2.0);
 
     // seed (hardcoded for reproducibility) + world_rank
     unsigned int seed = SEED + world_rank;
