@@ -1,7 +1,5 @@
 // monte carlo method for approximating sqrt(2) using openMPI and openMP
 // uses long datatypes for better precision
-// updated to a stable, low-variance estimator using min(U,V)
-
 #include <mpi.h>
 #include <omp.h>
 #include <stdio.h>
@@ -10,7 +8,8 @@
 
 // seed (currently my student number)
 #define SEED 20335307
-#define TWO 2.0L
+#define EPS 1e-8L     // small epsilon to avoid x=0
+#define X_MAX 2.0L    // integration domain [EPS, 2]
 
 int main(int argc, char** argv) {
     long long total_samples, local_samples;
@@ -43,17 +42,11 @@ int main(int argc, char** argv) {
 
         #pragma omp for
         for (long long i = 0; i < local_samples; i++) {
-            // sample U, V ~ Uniform(0,1]
-            long double U = (rand_r(&thread_seed) + 1.0L) /
-                            ((long double)RAND_MAX + 1.0L);
+            // sample x uniformly in [EPS, X_MAX]
+            long double x = EPS + ((rand_r(&thread_seed) / (long double)RAND_MAX) * (X_MAX - EPS));
 
-            long double V = (rand_r(&thread_seed) + 1.0L) /
-                            ((long double)RAND_MAX + 1.0L);
-
-            // sum the minimum of U and V
-            long double m = (U < V ? U : V);
-
-            local_sum += m;
+            // Monte Carlo integration: f(x) = 1/sqrt(x)
+            local_sum += 1.0L / sqrtl(x);
         }
     }
 
@@ -61,9 +54,8 @@ int main(int argc, char** argv) {
     MPI_Reduce(&local_sum, &global_sum, 1, MPI_LONG_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
     if (world_rank == 0) {
-        // low-variance estimator: sqrt(2) = 2 * mean(min(U,V))
-        long double mean = global_sum / (long double)total_samples;
-        long double sqrt2_est = TWO * mean;
+        // estimate is average value of f(x)
+        long double sqrt2_est = global_sum / (long double)total_samples;
 
         printf("Estimated sqrt(2) = %.10Lf\n", sqrt2_est);
         printf("Actual sqrt(2)    = %.10Lf\n", sqrtl(2.0L));
