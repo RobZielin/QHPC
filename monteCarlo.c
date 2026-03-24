@@ -1,14 +1,16 @@
 // monte carlo method for approximating sqrt(2) using openMPI and openMP
 // uses long datatypes for better precision
+// updated to a stable, low-variance estimator using min(U,V)
+
 #include <mpi.h>
 #include <omp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include <time.h>
 
 // seed (currently my student number)
 #define SEED 20335307
+#define TWO 2.0L
 
 int main(int argc, char** argv) {
     long long total_samples, local_samples;
@@ -32,7 +34,7 @@ int main(int argc, char** argv) {
     local_samples = total_samples / world_size;
 
     // seed (hardcoded for reproducibility) + world_rank
-    unsigned int seed = SEED + world_rank;
+    unsigned int seed = SEED + world_rank * 1234567;
 
     #pragma omp parallel reduction(+:local_sum)
     {
@@ -41,11 +43,17 @@ int main(int argc, char** argv) {
 
         #pragma omp for
         for (long long i = 0; i < local_samples; i++) {
-            // sample x uniformly in [0, 2]
-            long double x = (rand_r(&thread_seed) / (long double)RAND_MAX) * 2.0L;
+            // sample U, V ~ Uniform(0,1]
+            long double U = (rand_r(&thread_seed) + 1.0L) /
+                            ((long double)RAND_MAX + 1.0L);
 
-            // sum of 1/sqrt(x) for x in [0,2] should be ~sqrt(2)
-            local_sum += 1.0L / sqrtl(x);
+            long double V = (rand_r(&thread_seed) + 1.0L) /
+                            ((long double)RAND_MAX + 1.0L);
+
+            // sum the minimum of U and V
+            long double m = (U < V ? U : V);
+
+            local_sum += m;
         }
     }
 
@@ -53,11 +61,13 @@ int main(int argc, char** argv) {
     MPI_Reduce(&local_sum, &global_sum, 1, MPI_LONG_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
     if (world_rank == 0) {
-        long double sqrt2_est = global_sum / (long double)total_samples;
+        // low-variance estimator: sqrt(2) = 2 * mean(min(U,V))
+        long double mean = global_sum / (long double)total_samples;
+        long double sqrt2_est = TWO * mean;
 
         printf("Estimated sqrt(2) = %.10Lf\n", sqrt2_est);
-        printf("Actual sqrt(2)    = %.10Lf\n", (long double)sqrt(2.0));
-        printf("Absolute error    = %.10Le\n", fabsl(sqrt2_est - (long double)sqrt(2.0)));
+        printf("Actual sqrt(2)    = %.10Lf\n", sqrtl(2.0L));
+        printf("Absolute error    = %.10Le\n", fabsl(sqrt2_est - sqrtl(2.0L)));
     }
 
     MPI_Finalize();
