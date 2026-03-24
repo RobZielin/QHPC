@@ -34,7 +34,7 @@ int main(int argc, char** argv) {
     // seed (hardcoded for reproducibility) + world_rank
     unsigned int seed = SEED + world_rank;
 
-    #pragma omp parallel reduction(+:local_hits)
+    #pragma omp parallel reduction(+:local_sum)
     {
         // unique seed per mpi thread
         unsigned int thread_seed = seed ^ omp_get_thread_num();
