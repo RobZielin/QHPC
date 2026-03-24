@@ -43,13 +43,12 @@ int main(int argc, char** argv) {
 
         #pragma omp for
         for (long long i = 0; i < local_samples; i++) {
-            // 
+            // sample x uniformly in [0, 2]
             long double x = (rand_r(&thread_seed) / (long double)RAND_MAX) * 2.0L;
 
-            // 
+            // sum of 1/sqrt(x) for x in [0,2] should be ~sqrt(2)
             local_sum += 1.0L / sqrtl(x);
         }
-    }
     }
 
     // collect results
